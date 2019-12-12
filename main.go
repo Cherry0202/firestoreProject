@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 )
 
 type Product struct {
@@ -26,6 +27,7 @@ func main() {
 		}
 	}()
 
+	//初期化
 	ctx := context.Background()
 	opt := option.WithCredentialsFile("secret.json")
 	app, err := firebase.NewApp(ctx, nil, opt)
@@ -39,11 +41,6 @@ func main() {
 		fmt.Println(err)
 	}
 
-	//_, _, err = client.Collection("Users").Add(ctx, map[string]interface{}{
-	//	"name": "First User",
-	//	"age": 11,
-	//	"email": "first@example.com",
-	//})
 	raw, err := ioutil.ReadFile("./products.json")
 
 	if err != nil {
@@ -55,12 +52,16 @@ func main() {
 
 	json.Unmarshal(raw, &product)
 
+	//batch := client.Batch()
+	Ref := client.Collection("Products").Doc("Mac")
+
 	for num, _ := range raw {
 		fmt.Println(product[num].Title)
 		fmt.Println(product[num].Price)
 		fmt.Println(product[num].Url)
 
-		_, _, err = client.Collection("hoge2").Add(ctx, Product{
+		Ref = client.Collection("Products").Doc(strconv.Itoa(num))
+		_, err = Ref.Set(ctx, Product{
 			Title: product[num].Title,
 			Price: product[num].Price,
 			Url:   product[num].Url,
