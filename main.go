@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cloud.google.com/go/firestore"
 	"context"
 	"encoding/json"
 	firebase "firebase.google.com/go"
@@ -10,6 +11,8 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type Product struct {
@@ -19,13 +22,6 @@ type Product struct {
 }
 
 func main() {
-
-	defer func() {
-		err := recover()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
 
 	//初期化
 	ctx := context.Background()
@@ -52,24 +48,42 @@ func main() {
 
 	json.Unmarshal(raw, &product)
 
-	//batch := client.Batch()
-	Ref := client.Collection("Products").Doc("Mac")
+	batch := client.Batch()
+	//Ref := client.Collection("Products").Doc("Mac")
+	start := time.Now()
+	fmt.Println("スタート！！")
+	// for _, p := range product {
+	// 	batch.Set(Ref, p)
+	// }
+	wg := sync.WaitGroup{}
+	for num, p := range product {
+		//fmt.Println(product[num].Title)
+		//fmt.Println(product[num].Price)
+		//fmt.Println(product[num].Url)
 
-	for num, _ := range raw {
-		fmt.Println(product[num].Title)
-		fmt.Println(product[num].Price)
-		fmt.Println(product[num].Url)
-
-		Ref = client.Collection("Products").Doc(strconv.Itoa(num))
-		_, err = Ref.Set(ctx, Product{
-			Title: product[num].Title,
-			Price: product[num].Price,
-			Url:   product[num].Url,
-		})
+		//Ref := client.Collection("Products3").Doc(strconv.Itoa(num))
+		//_, err = Ref.Set(ctx, product[num])
+		go SetBatch(wg, batch, client, p, num)
 	}
-
+	wg.Wait()
+	_, err = batch.Commit(ctx)
 	if err != nil {
-		fmt.Println(err)
+		// Handle any errors in an appropriate way, such as returning them.
+		log.Printf("An error has occurred: %s", err)
 	}
+	end := time.Now()
+	fmt.Printf("かかった時間：%f秒\n", (end.Sub(start)).Seconds())
 
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+}
+
+func SetBatch(wg sync.WaitGroup, batch *firestore.WriteBatch, client *firestore.Client, p Product, num int) {
+	defer wg.Done()
+	Ref := client.Collection("Products3").Doc(strconv.Itoa(num))
+	batch.Set(Ref, p)
 }
