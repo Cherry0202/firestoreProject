@@ -23,6 +23,30 @@ type Product struct {
 
 func main() {
 
+	client, ctx := firestoreInit()
+
+	wg := sync.WaitGroup{}
+
+	raw := ReadJsonFile()
+
+	var product []Product
+
+	json.Unmarshal(raw, &product)
+
+	batch := client.Batch()
+	start := time.Now()
+	fmt.Println("スタート")
+	for num, p := range product {
+		//go SetBatch(wg, batch, client, p, num)
+		SetBatch(wg, batch, client, p, num)
+	}
+	wg.Wait()
+	CommitBatch(batch, ctx)
+	end := time.Now()
+	fmt.Printf("かかった時間：%f秒\n", (end.Sub(start)).Seconds())
+}
+
+func firestoreInit() (*firestore.Client, context.Context) {
 	//初期化
 	ctx := context.Background()
 	opt := option.WithCredentialsFile("secret.json")
@@ -37,7 +61,10 @@ func main() {
 		fmt.Println(err)
 	}
 
-	wg := sync.WaitGroup{}
+	return client, ctx
+}
+
+func ReadJsonFile() []byte {
 	raw, err := ioutil.ReadFile("./products.json")
 
 	if err != nil {
@@ -45,28 +72,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	var product []Product
-
-	json.Unmarshal(raw, &product)
-
-	batch := client.Batch()
-	start := time.Now()
-	fmt.Println("スタート")
-	for num, p := range product {
-		//go SetBatch(wg, batch, client, p, num)
-		SetBatch(wg, batch, client, p, num)
-	}
-	wg.Wait()
-	_, err = batch.Commit(ctx)
-	if err != nil {
-		log.Printf("An error has occurred: %s", err)
-	}
-	end := time.Now()
-	fmt.Printf("かかった時間：%f秒\n", (end.Sub(start)).Seconds())
+	return raw
 }
 
 func SetBatch(wg sync.WaitGroup, batch *firestore.WriteBatch, client *firestore.Client, p Product, num int) {
 	//defer wg.Done()
-	Ref := client.Collection("Product6").Doc(strconv.Itoa(num))
+	Ref := client.Collection("Product7").Doc(strconv.Itoa(num))
 	batch.Set(Ref, p)
+}
+
+func CommitBatch(batch *firestore.WriteBatch, ctx context.Context) {
+	_, err := batch.Commit(ctx)
+	if err != nil {
+		log.Printf("An error has occurred: %s", err)
+	}
 }
